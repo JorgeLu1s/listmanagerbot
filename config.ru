@@ -31,6 +31,7 @@ class App < Bot
       "/remove - Remove an item from a list - use: /remove The Godfather from Movies\n" +
       "/delete - Delete a list - use: /delete Movies\n" +
       "/confirm - Confirm an item in a list - use: /confirm The Godfather in Movies\n\n" +
+      "/cancel - Cancel an item in a list - use: /cancel The Godfather in Movies\n\n" +
       "Tip: you have a default list, you can add items to it if don't provide a list name, examples:\n" +
       "/add item\n/list\n/confirm item\n/remove item"
 
@@ -40,9 +41,8 @@ class App < Bot
   on '/add' do |update|
     text = update.message.text[4..update.message.text.length]
     resource = text.split(%r{[ ]to[ ]})
-    response = crud(resource, update.message, 'add') do |item, list, chat|
+    response = crud('add', resource, update.message) do |item, list, chat|
       add item, list, chat
-      item + ' added to ' + list + ' list'
     end
 
     update.message.chat.reply response
@@ -64,9 +64,8 @@ class App < Bot
   on '/remove' do |update|
     text = update.message.text[7..update.message.text.length]
     resource = text.split(%r{[ ]from[ ]})
-    response = crud(resource, update.message, 'remove') do |item, list, chat|
+    response = crud('remove', resource, update.message) do |item, list, chat|
       remove item, list, chat
-      item + ' removed from ' + list + ' list'
     end
 
     update.message.chat.reply response
@@ -74,8 +73,7 @@ class App < Bot
 
   on '/delete' do |update|
     text = update.message.text[7..update.message.text.length]
-    delete text, update.message.chat.id
-    response = text + ' list deleted'
+    response = delete text, update.message.chat.id
 
     update.message.chat.reply response
   end
@@ -83,9 +81,18 @@ class App < Bot
   on '/confirm' do |update|
     text = update.message.text[8..update.message.text.length]
     resource = text.split(%r{[ ]in[ ]})
-    response = crud(resource, update.message, 'confirm') do |item, list, chat|
-      confirm item, list, chat
-      item + ' confirmed in ' + list + ' list'
+    response = crud('confirm', resource, update.message) do |item, list, chat|
+      confirm item, list, chat, true
+    end
+
+    update.message.chat.reply response
+  end
+
+  on '/cancel' do |update|
+    text = update.message.text[8..update.message.text.length]
+    resource = text.split(%r{[ ]in[ ]})
+    response = crud('confirm', resource, update.message) do |item, list, chat|
+      confirm item, list, chat, false
     end
 
     update.message.chat.reply response
@@ -94,47 +101,40 @@ class App < Bot
   private
 
   def get_username(user)
-    if user.username.nil?
-      if user.first_name.nil?
-        username = nil
-      else
-        username = user.first_name
-      end
-    else
-      username = user.username
-    end
+    username = nil
+    username = user.username unless user.username.nil?
+    username ||= user.first_name unless user.first_name.nil?
 
-    username
+    return username
   end
 
-  def crud(resource, message, action)
+  def crud(action, resource, message)
+    return "Please specify an item to #{action}" if resource.empty?
+    item = resource[0]
+
     if resource.count == 1
-      if resource[0].strip == 'me'
-        username = get_username message.from
-        if username.nil?
-          response = 'sorry I can not ' + action + 'you, because you have no username'
-        else
-          response = yield(username, 'default', message.chat.id)
-        end
-      elsif resource[0].nil?
-        response = 'please send me an item to ' + action
-      elsif resource[0] != '@listmanagerbot'
-        response = yield(resource[0], 'default', message.chat.id)
-      end
+      list = 'default'
+      return "Please specify an item to #{action}" if resource[0] == '@listmanagerbot'
     elsif resource.count > 1
-      if resource[1].to_s.strip.length == 0
-        response = 'please send me an item to ' + action
-      else
-        response = yield(resource[0], resource[1], message.chat.id)
-      end
+      return "Please specify a list to #{action} the item" if resource[1].empty?
+      list = resource[1]
     end
 
-    response
+    if resource[0].strip == 'me'
+      username = get_username message.from
+      return "Sorry, I can not #{action} you because you don't have a username" if username.nil?
+      item = username
+    end
+
+    yield(item, list, message.chat.id)
   end
 
   def add(item, list, chat)
     unless item.nil? && list.nil? && chat.nil?
+      records = Item.where(name: item.strip, list: list.strip, chat: chat.to_s)
+      return "#{item} is already in #{list} list" if records.count > 0
       Item.create! name: item.strip, list: list.strip, chat: chat
+      return "#{item} added to #{list} list"
     end
   end
 
@@ -152,19 +152,21 @@ class App < Bot
     else
       i = 1
       items.each do |item|
-        lista += i.to_s + '. ' + item.name + "\n"
+        name = item.name
+        name << " \xE2\x9C\x85" if item.confirmed?
+        lista += i.to_s + '. ' + name + "\n"
         i += 1
       end
     end
 
-    lista
+    return lista
   end
 
   def lists(chat)
     items = Item.select(:list).where(chat: chat).distinct
 
     if items == 0
-      lista = 'You have no list'
+      lista = 'You have no lists'
     else
       i = 1
       lista = "which list do you want to see?\n"
@@ -174,22 +176,30 @@ class App < Bot
       end
     end
 
-    lista
+    return lista
   end
 
-  def remove(name, list, chat)
-    Item.where('name like ? and list = ? and chat = ?', "%#{name.strip}%", list.strip, chat.to_s).first.delete
+  def remove(item, list, chat)
+    records = Item.where(name: item.strip, list: list.strip, chat: chat.to_s)
+    return "#{item} is not in the #{list} list" if records.count == 0
+    Item.where('name like ? and list = ? and chat = ?', "%#{item.strip}%", list.strip, chat.to_s).first.delete
+    return "#{item} removed from #{list} list"
   end
 
   def delete(list, chat)
+    list = 'default' if list.empty?
+    records = Item.where(list: list.strip, chat: chat.to_s)
+    return "#{list} list does not exist" if records.count == 0
     Item.where(list: list.strip, chat: chat).delete_all
+    return "#{list} list deleted"
   end
 
-  def confirm(item_name, list, chat)
+  def confirm(item_name, list, chat, sw)
+    action = sw ? 'confirmed' : 'canceled'
     item = Item.where('name like ? and list = ? and chat = ?', "%#{item_name.strip}%", list.strip, chat.to_s).first
-    name = item.name
-    item.name = name << " \xE2\x9C\x85"
+    item.confirmed = sw
     item.save
+    return "#{item.name} #{action} in #{list} list"
   end
 end
 
