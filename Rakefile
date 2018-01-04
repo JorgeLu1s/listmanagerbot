@@ -3,7 +3,7 @@ require 'yaml'
 
 namespace :db do
 
-  db_config       = YAML::load(File.open('config/database.yml'))
+  db_config = YAML::load(File.open('config/database.yml'))
 
   desc "Create the database"
   task :create do

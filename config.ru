@@ -10,32 +10,27 @@ class App < Bot
   ActiveRecord::Base.establish_connection
 
   on '/start' do |update|
-    if update.message.chat.type == 'private'
-      response = 'Hi ' + update.message.chat.first_name +
-        ", I am Javier, use me to manage your lists, " +
-        "type help to know how to control me.\n"
-    else
-      response = 'Hi I am Javier, use me to manage your lists, ' +
-        "type help to know how to control me.\n"
-    end
+    name = 'guys'
+    name = update.message.chat.first_name if update.message.chat.type == 'private'
 
+    response = "Hi #{name}, I am Javier, use me to manage your lists. Type /help to know how to control me."
     update.message.chat.reply response
   end
 
   on '/help' do |update|
     response = "You can control me by sending these commands:\n" +
-      "/start - start a conversation with me :P\n" +
-      "/add - Add items to the list - use: /add The Godfather to Movies\n" +
-      "/list - Show all the items from a list - use: /list Movies\n" +
-      "/lists - Show all your lists\n" +
-      "/remove - Remove an item from a list - use: /remove The Godfather from Movies\n" +
-      "/delete - Delete a list - use: /delete Movies\n" +
-      "/confirm - Confirm an item in a list - use: /confirm The Godfather in Movies\n\n" +
-      "/cancel - Cancel an item in a list - use: /cancel The Godfather in Movies\n\n" +
-      "Tip: you have a default list, you can add items to it if don't provide a list name, examples:\n" +
-      "/add item\n/list\n/confirm item\n/remove item"
+      "`/start` - start a conversation with me :P\n" +
+      "`/add item to list_name` - Add items to the list\n" +
+      "`/list list_name` - Show all the items from a list\n" +
+      "`/lists` - Show all your lists\n" +
+      "`/remove item from list_name` - Remove an item from a list\n" +
+      "`/delete list_name` - Delete a list\n" +
+      "`/confirm item in list_name` - Confirm an item in a list\n" +
+      "`/cancel item in list_name` - Cancel an item in a list\n\n" +
+      "*Tip:* you have a default list, you can add items to it if don't provide a list name, examples:\n" +
+      "`/add item`\n`/list`\n`/confirm item`\n`/remove item`"
 
-    update.message.chat.reply response
+    update.message.chat.reply response, parse_mode: 'Markdown'
   end
 
   on '/add' do |update|
@@ -44,7 +39,6 @@ class App < Bot
     response = crud('add', resource, update.message) do |item, list, chat|
       add item, list, chat
     end
-
     update.message.chat.reply response
   end
 
@@ -67,14 +61,12 @@ class App < Bot
     response = crud('remove', resource, update.message) do |item, list, chat|
       remove item, list, chat
     end
-
     update.message.chat.reply response
   end
 
   on '/delete' do |update|
     text = update.message.text[7..update.message.text.length]
     response = delete text, update.message.chat.id
-
     update.message.chat.reply response
   end
 
@@ -84,17 +76,15 @@ class App < Bot
     response = crud('confirm', resource, update.message) do |item, list, chat|
       confirm item, list, chat, true
     end
-
     update.message.chat.reply response
   end
 
   on '/cancel' do |update|
-    text = update.message.text[8..update.message.text.length]
+    text = update.message.text[7..update.message.text.length]
     resource = text.split(%r{[ ]in[ ]})
-    response = crud('confirm', resource, update.message) do |item, list, chat|
+    response = crud('cancel', resource, update.message) do |item, list, chat|
       confirm item, list, chat, false
     end
-
     update.message.chat.reply response
   end
 
@@ -104,7 +94,6 @@ class App < Bot
     username = nil
     username = user.username unless user.username.nil?
     username ||= user.first_name unless user.first_name.nil?
-
     return username
   end
 
