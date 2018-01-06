@@ -6,13 +6,13 @@ Telegram bot to manage lists, no need to set up, just start adding items and the
 ```
 
 ###  Commands:
- 
+
 - `/list list_name`: List items from a list
 - `/lists`: List all your lists
-- `/add item to list_name`: Add a new item to a list
-- `/confirm item in list_name`: Confirm an item in a list
-- `/cancel item in list_name`: Cancel an item in a list
-- `/remove item from list_name`: Remove an item from a list
+- `/add item to list_name`: Add a new item to a list (send items separated by commas to add multiple records)
+- `/confirm item in list_name`: Confirm an item in a list (send items separated by commas to confirm multiple records)
+- `/cancel item in list_name`: Cancel an item in a list (send items separated by commas to cancel multiple records)
+- `/remove item from list_name`: Remove an item from a list (send items separated by commas to remove multiple records)
 - `/delete list_name`: Delete a list
 - `/start`: Start a conversation with the bot
 - `/help`: Show list of commands
