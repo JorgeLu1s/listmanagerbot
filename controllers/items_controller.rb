@@ -47,7 +47,7 @@ class ItemsController
         end
 
         items.each do |i|
-          Item.create! name: i, list: list.strip, chat: chat
+          Item.create! name: i.strip, list: list.strip, chat: chat
         end
 
         return "#{response} \n #{items.inspect} added to #{list} list"
@@ -110,14 +110,14 @@ class ItemsController
       items.each do |i|
         records << Item.where(name: i.strip, list: list.strip, chat: chat.to_s).first
       end
-      return "#{items.inspect} are not in #{list} list" if records.compact.count == 0
+      return "#{items.inspect} not in #{list} list" if records.compact.count == 0
 
       items.each do |i|
         Item.where('name like ? and list = ? and chat = ?', "%#{i.strip}%", list.strip, chat.to_s).first.delete
       end
       return "#{items.inspect} removed from #{list} list"
     else
-      records = Item.where(name: item.strip, list: list.strip, chat: chat.to_s)
+      records = Item.where('name like ? and list = ? and chat = ?', "%#{item.strip}%", list.strip, chat.to_s)
       return "#{item} is not in #{list} list" if records.count == 0
       Item.where('name like ? and list = ? and chat = ?', "%#{item.strip}%", list.strip, chat.to_s).first.delete
     end
@@ -136,15 +136,29 @@ class ItemsController
 
   def confirm(item, list, chat, sw)
     action = sw ? 'confirmed' : 'canceled'
-
     items = item.split(',') if item.include?(',')
+    records = []
 
     unless items.nil?
       items.each do |i|
+        record = Item.where(name: i.strip, list: list.strip, chat: chat.to_s).first
+        records << record.name unless record.nil? || !record.confirmed?
+      end
+
+      if records.count > 0
+        response = "#{records.inspect} already #{action} in #{list} list"
+        items.collect!(&:strip)
+        items = items - records
+      end
+
+      items.each do |i|
         Item.where('name like ? and list = ? and chat = ?', "%#{i.strip}%", list.strip, chat.to_s).first.update(confirmed: sw)
       end
-      return "#{items.inspect} #{action} to #{list} list"
+
+      return "#{response} \n #{items.inspect} #{action} in #{list} list"
     else
+      records = Item.where(name: item.strip, list: list.strip, chat: chat.to_s)
+      return "#{item} is already #{action} in #{list} list" if records.count > 0
       Item.where('name like ? and list = ? and chat = ?', "%#{item.strip}%", list.strip, chat.to_s).first.update(confirmed: sw)
     end
 
