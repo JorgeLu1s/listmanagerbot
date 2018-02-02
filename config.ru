@@ -40,7 +40,7 @@ class App < Bot
     text = update.message.text[4..update.message.text.length]
     resource = text.split(%r{[ ]to[ ]})
     response = @list_manager.crud('add', resource, update.message) do |item, list, chat|
-      @list_manager.add item, list, chat
+      @list_manager.add item.downcase, list, chat
     end
     update.message.chat.reply response
   end
@@ -62,7 +62,7 @@ class App < Bot
     text = update.message.text[7..update.message.text.length]
     resource = text.split(%r{[ ]from[ ]})
     response = @list_manager.crud('remove', resource, update.message) do |item, list, chat|
-      @list_manager.remove item, list, chat
+      @list_manager.remove item.downcase, list, chat
     end
     update.message.chat.reply response
   end
@@ -77,7 +77,7 @@ class App < Bot
     text = update.message.text[8..update.message.text.length]
     resource = text.split(%r{[ ]in[ ]})
     response = @list_manager.crud('confirm', resource, update.message) do |item, list, chat|
-      @list_manager.confirm item, list, chat, true
+      @list_manager.confirm item.downcase, list, chat, true
     end
     update.message.chat.reply response
   end
@@ -86,7 +86,7 @@ class App < Bot
     text = update.message.text[7..update.message.text.length]
     resource = text.split(%r{[ ]in[ ]})
     response = @list_manager.crud('cancel', resource, update.message) do |item, list, chat|
-      @list_manager.confirm item, list, chat, false
+      @list_manager.confirm item.downcase, list, chat, false
     end
     update.message.chat.reply response
   end
