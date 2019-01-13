@@ -53,6 +53,11 @@ class App < Bot
     end
   end
 
+  on '/all' do |update|
+    response = @list_manager.list 'all', update.message.chat.id
+    update.message.chat.reply response
+  end
+
   on '/lists' do |update|
     response = @list_manager.lists update.message.chat.id
     update.message.chat.reply response
